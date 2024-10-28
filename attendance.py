@@ -5,8 +5,13 @@ from datetime import datetime
 import os
 import sys
 import io
+from docx import Document  # Importar la biblioteca para manejar archivos .docx
 
-# Función para obtener la ruta de recursos, útil para PyInstaller
+# **1. Configuración de la Página (Debe ser la Primera Llamada a Streamlit)**
+st.set_page_config(page_title="Administrador de Asistencia", layout="wide")
+st.title("Administrador de Asistencia con Base de Datos")
+
+# **2. Función para Obtener la Ruta de Recursos (útil para PyInstaller)**
 def resource_path(relative_path):
     """Obtiene la ruta absoluta al recurso, funciona en desarrollo y PyInstaller"""
     try:
@@ -16,14 +21,15 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-# Función para conectar a la base de datos
+# **3. Función para Conectar a la Base de Datos**
 def connect_db():
     db_path = resource_path("identification_records.db")
     conn = sqlite3.connect(db_path, check_same_thread=False)
     return conn
 
-# Función para crear las tablas en la base de datos
+# **4. Función para Crear las Tablas en la Base de Datos con Migración**
 def create_tables():
+    migration_done = False  # Variable para indicar si se realizó una migración
     with connect_db() as conn:
         cursor = conn.cursor()
         
@@ -105,6 +111,7 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS matched_results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             file_id INTEGER,
+            attendance_date TEXT,  -- Añadido campo de fecha
             id_number TEXT,
             name TEXT,
             area TEXT,
@@ -116,9 +123,20 @@ def create_tables():
         )
         ''')
         
+        # **Migración: Añadir 'attendance_date' si no existe**
+        cursor.execute("PRAGMA table_info(matched_results)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if 'attendance_date' not in columns:
+            cursor.execute("ALTER TABLE matched_results ADD COLUMN attendance_date TEXT")
+            migration_done = True
+        else:
+            migration_done = False
+        
         conn.commit()
+    
+    return migration_done
 
-# Horarios esperados para cada área
+# **5. Horarios Esperados para Cada Área**
 expected_schedules = {
     "ASEO": {"check_in": "06:15", "check_out": "15:00"},
     "MANTENIMIENTO": {"check_in": "07:15", "check_out": "17:00"},
@@ -127,7 +145,20 @@ expected_schedules = {
     # Puedes agregar más áreas y horarios según sea necesario
 }
 
-# Función para procesar el archivo subido
+# **6. Función para Extraer Texto de Archivos .docx**
+def extract_text_from_docx(file_content):
+    try:
+        # Crear un objeto Document a partir del contenido del archivo
+        document = Document(io.BytesIO(file_content))
+        full_text = []
+        for para in document.paragraphs:
+            full_text.append(para.text)
+        return '\n'.join(full_text)
+    except Exception as e:
+        st.error(f"Error al procesar el archivo Word: {e}")
+        return ""
+
+# **7. Función para Procesar el Archivo Subido**
 def process_file(file_content, attendance_date, file_name):
     with connect_db() as conn:
         cursor = conn.cursor()
@@ -140,31 +171,51 @@ def process_file(file_content, attendance_date, file_name):
         
         file_id = cursor.lastrowid
         
-        # Leer el contenido del archivo
-        try:
-            content = file_content.decode("utf-8").splitlines()
-        except UnicodeDecodeError:
-            st.error("Error al decodificar el archivo. Asegúrate de que esté en formato UTF-8.")
+        # Determinar el tipo de archivo y extraer el contenido de texto
+        if file_name.lower().endswith('.docx'):
+            extracted_text = extract_text_from_docx(file_content)
+            if not extracted_text:
+                st.error("No se pudo extraer texto del archivo Word.")
+                return
+            content = extracted_text.splitlines()
+        elif file_name.lower().endswith(('.dat', '.txt')):
+            try:
+                content = file_content.decode("utf-8").splitlines()
+            except UnicodeDecodeError:
+                st.error("Error al decodificar el archivo. Asegúrate de que esté en formato UTF-8.")
+                return
+        else:
+            st.error("Formato de archivo no soportado. Por favor, sube un archivo .dat, .txt o .docx.")
             return
         
         user_times = {}
-
+        
         for line in content:
             fields = line.strip().split('\t')
             if len(fields) >= 2:
                 id_number = fields[0].strip()
-                date_time = fields[1].strip()
+                date_time_str = fields[1].strip()
                 
                 # Filtrar IDs inválidos
                 if len(id_number) < 4 or not id_number.isdigit():
                     continue
                 
+                # Parsear el datetime
+                try:
+                    date_time = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S")
+                    date_str = date_time.strftime("%Y-%m-%d")
+                except ValueError:
+                    st.warning(f"Formato de fecha y hora inválido para el ID {id_number}: {date_time_str}")
+                    continue
+                
                 if id_number not in user_times:
-                    user_times[id_number] = []
-                user_times[id_number].append(date_time)
+                    user_times[id_number] = {}
+                if date_str not in user_times[id_number]:
+                    user_times[id_number][date_str] = []
+                user_times[id_number][date_str].append(date_time)
         
-        # Procesar los tiempos de cada usuario
-        for id_number, times in user_times.items():
+        # Procesar los tiempos de cada usuario por día
+        for id_number, dates in user_times.items():
             cursor.execute("SELECT name, area FROM records WHERE id = ?", (id_number,))
             result = cursor.fetchone()
 
@@ -177,69 +228,78 @@ def process_file(file_content, attendance_date, file_name):
             
             if result:
                 name, area = result
-                times.sort()
-                
-                check_in = times[0]
-                check_out = times[-1] if len(times) > 1 else None
-
-                status = "N/A"
-                hours_worked = "N/A"
-                if area in expected_schedules:
-                    expected_check_in_str = expected_schedules[area]["check_in"]
-                    expected_check_in = datetime.strptime(expected_check_in_str, "%H:%M").time()
-
-                    try:
-                        actual_check_in_datetime = datetime.strptime(check_in, "%Y-%m-%d %H:%M:%S")
-                        actual_check_in_time = actual_check_in_datetime.time()
-                        
-                        status = "TEMPRANO" if actual_check_in_time <= expected_check_in else "TARDE"
-                    except ValueError:
-                        status = "Formato de Hora Inválido"
+                for date_str, times in dates.items():
+                    times.sort()
                     
-                    if check_out:
-                        try:
-                            actual_check_out_datetime = datetime.strptime(check_out, "%Y-%m-%d %H:%M:%S")
-                            time_difference = actual_check_out_datetime - actual_check_in_datetime
-                            total_hours = time_difference.total_seconds() / 3600
-                            hours = int(total_hours)
-                            minutes = int((total_hours - hours) * 60)
-                            hours_worked = f"{hours}h {minutes}m"
-                        except ValueError:
-                            hours_worked = "Formato de Hora Inválido"
-                else:
-                    status = "Área no definida"
-                    hours_worked = "N/A"
+                    check_in_datetime = times[0]
+                    check_out_datetime = times[-1] if len(times) > 1 else None
+                    
+                    check_in = check_in_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                    check_out = check_out_datetime.strftime("%Y-%m-%d %H:%M:%S") if check_out_datetime else None
 
-                # Insertar el resultado emparejado
-                cursor.execute('''
-                INSERT INTO matched_results (
-                    file_id, id_number, name, area, check_in, check_out, status, hours_worked
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (file_id, id_number, name, area, check_in, check_out, status, hours_worked))
+                    status = "N/A"
+                    hours_worked = "N/A"
+                    if area in expected_schedules:
+                        expected_check_in_str = expected_schedules[area]["check_in"]
+                        expected_check_in = datetime.strptime(expected_check_in_str, "%H:%M").time()
+
+                        try:
+                            actual_check_in_time = check_in_datetime.time()
+                            
+                            status = "TEMPRANO" if actual_check_in_time <= expected_check_in else "TARDE"
+                        except ValueError:
+                            status = "Formato de Hora Inválido"
+                        
+                        if check_out_datetime:
+                            try:
+                                time_difference = check_out_datetime - check_in_datetime
+                                total_hours = time_difference.total_seconds() / 3600
+                                hours = int(total_hours)
+                                minutes = int((total_hours - hours) * 60)
+                                hours_worked = f"{hours}h {minutes}m"
+                            except ValueError:
+                                hours_worked = "Formato de Hora Inválido"
+                    else:
+                        status = "Área no definida"
+                        hours_worked = "N/A"
+
+                    # Insertar el resultado emparejado con la fecha
+                    cursor.execute('''
+                    INSERT INTO matched_results (
+                        file_id, attendance_date, id_number, name, area, check_in, check_out, status, hours_worked
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (file_id, date_str, id_number, name, area, check_in, check_out, status, hours_worked))
         
         conn.commit()
         st.success(f"Archivo '{file_name}' procesado y almacenado correctamente.")
 
-# Función para obtener la lista de archivos de asistencia
+# **8. Función para Obtener la Lista de Archivos de Asistencia**
 def get_attendance_files():
     with connect_db() as conn:
-        df = pd.read_sql_query("SELECT * FROM attendance_files ORDER BY attendance_date DESC", conn)
+        df = pd.read_sql_query("SELECT * FROM attendance_files ORDER BY upload_date DESC", conn)
     return df
 
-# Función para obtener los resultados emparejados de un archivo específico
+# **9. Función para Obtener los Resultados Emparejados de un Archivo Específico**
 def get_matched_results(file_id):
     with connect_db() as conn:
         query = '''
-        SELECT id_number AS "ID", name AS "Nombre", area AS "Área",
-               check_in AS "Check In", check_out AS "Check Out",
-               status AS "Estado", hours_worked AS "Horas Trabajadas"
-        FROM matched_results
-        WHERE file_id = ?
+        SELECT 
+            mr.attendance_date AS "Fecha",
+            mr.id_number AS "ID", 
+            mr.name AS "Nombre", 
+            mr.area AS "Área",
+            mr.check_in AS "Check In", 
+            mr.check_out AS "Check Out",
+            mr.status AS "Estado", 
+            mr.hours_worked AS "Horas Trabajadas"
+        FROM matched_results mr
+        WHERE mr.file_id = ?
+        ORDER BY mr.attendance_date, mr.id_number
         '''
         df = pd.read_sql_query(query, conn, params=(file_id,))
     return df
 
-# Función para exportar los resultados emparejados a Excel
+# **10. Función para Exportar los Resultados Emparejados a Excel**
 def export_to_excel(df, file_name):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -247,36 +307,39 @@ def export_to_excel(df, file_name):
     processed_data = output.getvalue()
     return processed_data
 
-# Configuración inicial de la base de datos
-create_tables()
+# **11. Crear las Tablas y Realizar la Migración si es Necesario**
+migration_done = create_tables()
 
-# Configuración de la aplicación Streamlit
-st.set_page_config(page_title="Administrador de Asistencia", layout="wide")
-st.title("Administrador de Asistencia con Base de Datos")
+# **12. Mostrar Mensaje de Migración si se Realizó**
+if migration_done:
+    st.info("Se ha añadido la columna 'attendance_date' a la tabla 'matched_results'.")
 
+# **13. Configuración de la Aplicación Streamlit**
 st.markdown("""
-Esta aplicación permite subir archivos de asistencia, almacenarlos en una base de datos, 
+Esta aplicación permite subir archivos de asistencia semanal, almacenarlos en una base de datos, 
 ver los registros almacenados y exportarlos cuando lo desees.
 """)
 
-# Sección para subir un nuevo archivo de asistencia
+# **14. Sección para Subir un Nuevo Archivo de Asistencia**
 st.header("Subir Archivo de Asistencia")
 with st.form(key='upload_form'):
-    uploaded_file = st.file_uploader("Selecciona un archivo de asistencia", type=["dat", "txt"])
-    attendance_date = st.date_input("Fecha de Asistencia", datetime.today())
+    uploaded_file = st.file_uploader("Selecciona un archivo de asistencia", type=["dat", "txt", "docx"])  # Añadir 'docx' a los tipos permitidos
+    # El campo de fecha ahora puede representar la semana o puede omitirse si se usa la fecha de cada registro
+    # Para mantener compatibilidad, lo mantenemos pero puede ser opcional
+    attendance_week = st.date_input("Fecha de Asistencia (Semana)", datetime.today())
     submit_button = st.form_submit_button("Procesar y Almacenar")
 
     if submit_button:
         if uploaded_file is not None:
             file_name = uploaded_file.name
             file_content = uploaded_file.read()
-            process_file(file_content, attendance_date.strftime("%Y-%m-%d"), file_name)
+            process_file(file_content, attendance_week.strftime("%Y-%m-%d"), file_name)
         else:
             st.error("Por favor, selecciona un archivo para subir.")
 
 st.markdown("---")
 
-# Sección para ver los archivos de asistencia almacenados
+# **15. Sección para Ver los Archivos de Asistencia Almacenados**
 st.header("Archivos de Asistencia Almacenados")
 attendance_files_df = get_attendance_files()
 
@@ -311,14 +374,15 @@ else:
 
 st.markdown("---")
 
-# Opcional: Mostrar todos los resultados emparejados
+# **16. Opcional: Mostrar Todos los Resultados Emparejados**
 st.header("Todos los Resultados Emparejados")
 with connect_db() as conn:
     query = '''
     SELECT 
+        mr.attendance_date AS "Fecha",
         af.file_id AS "ID Archivo",
         af.file_name AS "Nombre Archivo",
-        af.attendance_date AS "Fecha Asistencia",
+        af.attendance_date AS "Fecha de Asistencia del Archivo",
         mr.id_number AS "ID",
         mr.name AS "Nombre",
         mr.area AS "Área",
@@ -331,7 +395,7 @@ with connect_db() as conn:
     JOIN 
         attendance_files af ON mr.file_id = af.file_id
     ORDER BY 
-        af.attendance_date DESC
+        mr.attendance_date DESC, af.upload_date DESC
     '''
     all_results_df = pd.read_sql_query(query, conn)
 
