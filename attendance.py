@@ -5,7 +5,6 @@ from datetime import datetime
 import os
 import sys
 import io
-from docx import Document  # Importar la biblioteca para manejar archivos .docx
 
 # **1. Configuración de la Página (Debe ser la Primera Llamada a Streamlit)**
 st.set_page_config(page_title="Administrador de Asistencia", layout="wide")
@@ -145,18 +144,6 @@ expected_schedules = {
     # Puedes agregar más áreas y horarios según sea necesario
 }
 
-# **6. Función para Extraer Texto de Archivos .docx**
-def extract_text_from_docx(file_content):
-    try:
-        # Crear un objeto Document a partir del contenido del archivo
-        document = Document(io.BytesIO(file_content))
-        full_text = []
-        for para in document.paragraphs:
-            full_text.append(para.text)
-        return '\n'.join(full_text)
-    except Exception as e:
-        st.error(f"Error al procesar el archivo Word: {e}")
-        return ""
 
 # **7. Función para Procesar el Archivo Subido**
 def process_file(file_content, attendance_date, file_name):
@@ -172,21 +159,15 @@ def process_file(file_content, attendance_date, file_name):
         file_id = cursor.lastrowid
         
         # Determinar el tipo de archivo y extraer el contenido de texto
-        if file_name.lower().endswith('.docx'):
-            extracted_text = extract_text_from_docx(file_content)
-            if not extracted_text:
-                st.error("No se pudo extraer texto del archivo Word.")
-                return
-            content = extracted_text.splitlines()
-        elif file_name.lower().endswith(('.dat', '.txt')):
+        if file_name.lower().endswith(('.dat', '.txt')):
             try:
                 content = file_content.decode("utf-8").splitlines()
             except UnicodeDecodeError:
                 st.error("Error al decodificar el archivo. Asegúrate de que esté en formato UTF-8.")
                 return
         else:
-            st.error("Formato de archivo no soportado. Por favor, sube un archivo .dat, .txt o .docx.")
-            return
+            st.error("Formato de archivo no soportado. Por favor, sube un archivo .dat o .txt.")
+            return  # Mover el return dentro del bloque else
         
         user_times = {}
         
@@ -197,7 +178,7 @@ def process_file(file_content, attendance_date, file_name):
                 date_time_str = fields[1].strip()
                 
                 # Filtrar IDs inválidos
-                if len(id_number) < 4 or not id_number.isdigit():
+                if len(id_number) < 4 or id_number.isdigit():
                     continue
                 
                 # Parsear el datetime
@@ -323,7 +304,7 @@ ver los registros almacenados y exportarlos cuando lo desees.
 # **14. Sección para Subir un Nuevo Archivo de Asistencia**
 st.header("Subir Archivo de Asistencia")
 with st.form(key='upload_form'):
-    uploaded_file = st.file_uploader("Selecciona un archivo de asistencia", type=["dat", "txt", "docx"])  # Añadir 'docx' a los tipos permitidos
+    uploaded_file = st.file_uploader("Selecciona un archivo de asistencia", type=["dat", "txt"])  # Añadir 'docx' a los tipos permitidos
     # El campo de fecha ahora puede representar la semana o puede omitirse si se usa la fecha de cada registro
     # Para mantener compatibilidad, lo mantenemos pero puede ser opcional
     attendance_week = st.date_input("Fecha de Asistencia (Semana)", datetime.today())
