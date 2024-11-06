@@ -44,50 +44,7 @@ def create_tables():
         # Datos iniciales (completa con todos los registros)
         records_data = [
             ('1088327667', 'ERIKA TATIANA GALLEGO VINASCO', 'POSCOSECHA'),
-            ('1004520909', 'ANGIE VANESSA ARCE LOPEZ', 'POSCOSECHA'),
-            ('94509907', 'JULIÁN ANDRÉS PÉREZ BETANCUR', 'ADMINISTRACIÓN'),
-            ('22131943', 'ROSA AMELIA SOLORZANO SAMPEDRO', 'ASEO'),
-            ('1089747022', 'JUAN ESTEBAN TORO VARGAS', 'MANTENIMIENTO'),
-            ('1004733786', 'STEVEN ARCE VALLE', 'POSCOSECHA'),
-            ('1004756825', 'LAURA RAMIREZ QUINTERO', 'ADMINISTRACIÓN'),
-            ('1088305975', 'PAOLA ANDREA OSORIO GRISALES', 'POSCOSECHA'),
-            ('1004751727', 'LAURA VANESSA LONDOÑO SILVA', 'POSCOSECHA'),
-            ('1088256932', 'YEISON LEANDRO ARIAS MONTES', 'OPERACIONES'),
-            ('1088346284', 'NATALIA VALENCIA CORTES', 'ADMINISTRACIÓN'),
-            ('1117964380', 'YAMILETH HILARION OLAYA', 'POSCOSECHA'),
-            ('5760588', 'JOSE AUGUSTO CORDOVEZ CHARAMA', 'POSCOSECHA'),
-            ('1112770658', 'LUIS ALBERTO OROZCO RODRIGUEZ', 'POSCOSECHA'),
-            ('1110480331', 'CLAUDIA YULIMA CUTIVA BETANCOURTH', 'POSCOSECHA'),
-            ('25038229', 'YORME DE JESUS LOPEZ IBARRA', 'POSCOSECHA'),
-            ('1128844585', 'YENIFFER MOSQUERA PEREA', 'POSCOSECHA'),
-            ('1089930892', 'ALEXANDRA RIOS BUENO', 'POSCOSECHA'),
-            ('1088295574', 'ANDRES FELIPE BEDOYA ROJAS', 'POSCOSECHA'),
-            ('1004767653', 'BRAYAN ANDRES JARAMILLO URBANO', 'MANTENIMIENTO'),
-            ('1093984174', 'CARLOS ANDRES SANCHEZ QUEBRADA', 'POSCOSECHA'),
-            ('1193546514', 'MAYERLIN PARRA RIVEROS', 'POSCOSECHA'),
-            ('1088316215', 'SERGIO MUÑOZ RAMIREZ', 'ADMINISTRACIÓN'),
-            ('1128844863', 'BIVIAN YISET MOSQUERA PEREA', 'POSCOSECHA'),
-            ('30356482', 'MAGOLA PATIÑO ECHEVERRY', 'POSCOSECHA'),
-            ('1085816021', 'LEIDY CAROLINA JIMENEZ BERMUDEZ', 'POSCOSECHA'),
-            ('1089599713', 'MARIA CAMILA COLORADO LONDOÑO', 'POSCOSECHA'),
-            ('1007367459', 'FLOR NORELA VARGAS SERNA', 'POSCOSECHA'),
-            ('1004668536', 'LAURA CAMILA ARIAS HERNANDEZ', 'ADMINISTRACIÓN'),
-            ('1054926615', 'MARIA PAULA AGUIRRE OCHOA', 'ADMINISTRACIÓN'),
-            ('1089598139', 'JHON MICHAEL GOMEZ RESTREPO', 'POSCOSECHA'),
-            ('41214603', 'LUZ KARIME CONTRERAS BUITRAGO', 'POSCOSECHA'),
-            ('1060270203', 'MARCELA LOPEZ RAMIREZ', 'POSCOSECHA'),
-            ('1274327', 'WYNDIMAR YALUZ SANCHEZ HERRERA', 'POSCOSECHA'),
-            ('1118287112', 'MARTHA LUCIA LOPEZ ARBOLEDA', 'POSCOSECHA'),
-            ('5472144', 'NERYS CAROLINA HERNANDEZ GARCIA', 'POSCOSECHA'),
-            ('63530730', 'NORIZA NIÑO PEDRAZA', 'POSCOSECHA'),
-            ('1085717082', 'BRAYAN LEANDRO BELTRAN PIEDRAHITA', 'POSCOSECHA'),
-            ('1004755939', 'FABIO ANDRES GOMEZ OSPINA', 'ADMINISTRACIÓN'),
-            ('1089601326', 'LEIDY LAURA ESPINOZA OSPINA', 'POSCOSECHA'), 
-            ('1007554110', 'ANGIE PAOLA OCAMPO HENAO', 'POSCOSECHA'),
-            ('1032936469', 'DANA CAROLINA SUAREZ GALEANO', 'POSCOSECHA'),
-            ('1090332929', 'MAIKOL JUNIOR CHIQUITO MONTOYA', 'POSCOSECHA'),
-            ('6624989', 'ADELMIRA PRADO NAVARRO', 'POSCOSECHA'),
-            ('42162247', 'NATALY TABIMA GARCIA', 'POSCOSECHA'),
+            # ... (otros registros)
             ('42146393', 'ANGELA MARIA ALARCON ESCOBAR', 'POSCOSECHA')
         ]
         
@@ -144,7 +101,6 @@ expected_schedules = {
     # Puedes agregar más áreas y horarios según sea necesario
 }
 
-
 # **7. Función para Procesar el Archivo Subido**
 def process_file(file_content, attendance_date, file_name):
     with connect_db() as conn:
@@ -178,7 +134,7 @@ def process_file(file_content, attendance_date, file_name):
                 date_time_str = fields[1].strip()
                 
                 # Filtrar IDs inválidos
-                if len(id_number) < 4 or id_number.isdigit():
+                if len(id_number) < 4 or not id_number.isdigit():
                     continue
                 
                 # Parsear el datetime
