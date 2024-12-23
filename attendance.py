@@ -45,7 +45,9 @@ def create_tables():
         records_data = [
             ('1088327667', 'ERIKA TATIANA GALLEGO VINASCO', 'POSCOSECHA'),
             # ... (otros registros)
-            ('42146393', 'ANGELA MARIA ALARCON ESCOBAR', 'POSCOSECHA')
+            ('42146393', 'ANGELA MARIA ALARCON ESCOBAR', 'POSCOSECHA'),
+            ('1007745486', 'ALEXANDRA CUELLAR ARTUNDUAGA', 'POSCOSECHA'),
+            ('1006428666', 'ALEJANDRA MILLELY OCAMPO', 'POSCOSECHA')
         ]
         
         cursor.executemany('''
