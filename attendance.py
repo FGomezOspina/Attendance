@@ -253,11 +253,6 @@ migration_done = create_tables()
 if migration_done:
     st.info("Se ha añadido la columna 'attendance_date' a la tabla 'matched_results'.")
 
-# **13. Configuración de la Aplicación Streamlit**
-st.markdown("""
-Esta aplicación de sangre permite permite permite subir archivos de asistencia semanal, almacenarlos en una base de datos, 
-ver los registros almacenados y exportarlos cuando lo desees.
-""")
 
 # **14. Sección para Subir un Nuevo Archivo de Asistencia**
 st.header("Subir Archivo de Asistencia")
