@@ -255,7 +255,7 @@ if migration_done:
 
 # **13. Configuración de la Aplicación Streamlit**
 st.markdown("""
-Esta aplicación permite subir archivos de asistencia semanal, almacenarlos en una base de datos, 
+Esta aplicación de sangre permite permite permite subir archivos de asistencia semanal, almacenarlos en una base de datos, 
 ver los registros almacenados y exportarlos cuando lo desees.
 """)
 
