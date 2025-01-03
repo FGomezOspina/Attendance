@@ -47,7 +47,9 @@ def create_tables():
             # ... (otros registros)
             ('42146393', 'ANGELA MARIA ALARCON ESCOBAR', 'POSCOSECHA'),
             ('1007745486', 'ALEXANDRA CUELLAR ARTUNDUAGA', 'POSCOSECHA'),
-            ('1006428666', 'ALEJANDRA MILLELY OCAMPO', 'POSCOSECHA')
+            ('1006428666', 'ALEJANDRA MILLELY OCAMPO', 'POSCOSECHA'),
+            ('6060045', 'OSCARIANI DEL CARMEN AMARISTA GUZMAN', 'POSCOSECHA'),
+            ('1088285124', 'JENIFER CAROLINA IBARRA ANDICA', 'POSCOSECHA')
         ]
         
         cursor.executemany('''
