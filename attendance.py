@@ -100,11 +100,12 @@ def create_tables():
             ('1005021274', 'MANUELA HOLGUIN ARANGO', 'POSCOSECHA'),
             ('1088353499', 'MARIA ESMERALDA PAVAS BATERO', 'POSCOSECHA'),
             ('1059698941', 'JENIFER BAÑOL PESCADORS', 'POSCOSECHA'),
-            ('','',''),
-            ('','',''),
-            ('','',''),
-            ('','',''),
-            ('','','')
+            ('1024592442','DAVID ANDRES BLANCO GALEANO','POSCOSECHA'),
+            ('1088824868','LAURA VALENTINA MOTATO BETANCOUR','POSCOSECHA'),
+            ('6272421','GENESIS DE NAZARETH LOYO PASTRANA','POSCOSECHA'),
+            ('3215025','HENYERLY YISMERY MONTOYA LOYO','POSCOSECHA'),
+            ('1056781915','CLAUDIA MIRLAYS RONDON OCAMPO','POSCOSECHA'),
+            ('1056786801','KARINA VANESA RUBIO CAICEDO','POSCOSECHA')
         ]
         
         cursor.executemany('''
